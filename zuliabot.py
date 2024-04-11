@@ -1,6 +1,7 @@
 import logging
 import string
 import time
+import json
 from unidecode import unidecode
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -9,6 +10,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level = logging.INFO
 )
+
+TOKEN_FILE = "Ressources/bot_tok.txt"
 
 ZUL = ["o",
        "eau",
@@ -112,7 +115,10 @@ async def apagn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     
 def main():
-    app = ApplicationBuilder().token().build()
+    with open(TOKEN_FILE) as f:
+        token_file = json.load(f)
+    token = token_file['zul']
+    app = ApplicationBuilder().token(token).build()
 
     # app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), echo))
