@@ -112,7 +112,7 @@ async def apagn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     
 def main():
-    app = ApplicationBuilder().token('7004038467:AAGg5mE5k47Elg_RRzgQa5FzNmkf-WibUFw').build()
+    app = ApplicationBuilder().token().build()
 
     # app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), echo))
