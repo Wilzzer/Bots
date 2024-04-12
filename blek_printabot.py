@@ -109,7 +109,7 @@ def main():
     if(not error):
         response = session.get("https://print.blek.ch/restful/v1/tests/http/request")
         print(response.text)
-        # print_file(session, user_auth_data, filename) 
+        # # print_file(session, user_auth_data, filename)
     else:
         print("Found error in request blablabla :\n", error)
 
