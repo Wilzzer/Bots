@@ -96,7 +96,7 @@ def generate_pdf(file):
     # FPDF.eph
     size = min(pdf.eph, pdf.epw)
     # img.thumbnail((size, size), Image.Resampling.LANCZOS)
-    print(pdf.eph, pdf.epw, img.height, img.width)
+    # print(pdf.eph, pdf.epw, img.height, img.width)
     if(pdf_orient == "L"):
         pdf.image(img, h=size)
     else:
