@@ -4,9 +4,10 @@ import json
 from fpdf import FPDF
 from PIL import Image
 
+FILE_PRE = "Ressources/"
 AUTH_URL = "https://auth.blek.ch/"
-USER_FILE = "user.txt"
-TEST_FILE = "prout.pdf"
+USER_FILE = FILE_PRE+"user.txt"
+TEST_FILE = FILE_PRE+"prout.pdf"
 
 auth_headers = {'Host': 'auth.blek.ch',
            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
@@ -66,14 +67,12 @@ def open_session(user_auth_data):
     return session, error_str
 
 def print_file(session, user_auth_data, filename):
-    print_file = filename
-
     print_headers = {
         'Accept': 'application/json'
     }
 
     files = {
-        'file': open(print_file, 'rb')
+        'file': open(filename, 'rb')
     }
 
     response = session.post(
@@ -92,11 +91,17 @@ def generate_pdf(file):
         pdf_orient = "L"
     else:
         pdf_orient = "P"
-    pdf_orient = "L"
     pdf = FPDF(orientation=pdf_orient, unit="mm", format="A4")
     pdf.add_page()
     # FPDF.eph
-    print(pdf.eph, pdf.epw, img.height, img.width)
+    size = min(pdf.eph, pdf.epw)
+    # img.thumbnail((size, size), Image.Resampling.LANCZOS)
+    # print(pdf.eph, pdf.epw, img.height, img.width)
+    if(pdf_orient == "L"):
+        pdf.image(img, h=size)
+    else:
+        pdf.image(img, w=size)
+    pdf.output("Ressources/test.pdf")
 
 def main():
     with open(USER_FILE) as f:
@@ -104,7 +109,7 @@ def main():
     session, error = open_session(user_auth_data)
     filename = TEST_FILE
 
-    generate_pdf("pinard.jpg")
+    generate_pdf(FILE_PRE+"alpine.jpg")
     if(not error):
         response = session.get("https://print.blek.ch/restful/v1/tests/http/request")
         print(response.text)
