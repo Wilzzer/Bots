@@ -4,9 +4,10 @@ import json
 from fpdf import FPDF
 from PIL import Image
 
+RES_PRE = "Ressources/"
 AUTH_URL = "https://auth.blek.ch/"
-USER_FILE = "user.txt"
-TEST_FILE = "prout.pdf"
+USER_FILE = RES_PRE+"user.txt"
+TEST_FILE = RES_PRE+"prout.pdf"
 
 auth_headers = {'Host': 'auth.blek.ch',
            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
