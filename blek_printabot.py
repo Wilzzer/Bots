@@ -109,7 +109,7 @@ def main():
     session, error = open_session(user_auth_data)
     filename = TEST_FILE
 
-    generate_pdf(FILE_PRE+"alpine.jpg")
+    generate_pdf(RES_PRE+"alpine.jpg")
     if(not error):
         response = session.get("https://print.blek.ch/restful/v1/tests/http/request")
         print(response.text)

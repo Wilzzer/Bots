@@ -82,13 +82,16 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=zuliatext)
                 time.sleep(0.1)
                 break
-        if word in APAGN:
-            await context.bot.send_animation(chat_id=update.effective_chat.id, animation="CgACAgQAAxkBAANEZgKWAAGeKiZ8tN_8mlRYZXmFAsxOAAJWBAACSYsdUUzZMU2eWmqVNAQ", reply_to_message_id=update.message.id)
-            return
-            
-        if(word in CKU):
-            await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker="CAACAgQAAxkBAANWZgKkKTBWXw4QXdnnzj4moP-PuYEAApQJAAIO6MlQCDZWevZwWR40BA", reply_to_message_id=update.message.id)
-            break
+        for apagnan in APAGN:
+            if apagnan in word:
+        # if word in APAGN:
+                await context.bot.send_animation(chat_id=update.effective_chat.id, animation="CgACAgQAAxkBAANEZgKWAAGeKiZ8tN_8mlRYZXmFAsxOAAJWBAACSYsdUUzZMU2eWmqVNAQ", reply_to_message_id=update.message.id)
+                return
+        for secu in CKU:
+            if secu in word:
+        # if(word in CKU):
+                await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker="CAACAgQAAxkBAANWZgKkKTBWXw4QXdnnzj4moP-PuYEAApQJAAIO6MlQCDZWevZwWR40BA", reply_to_message_id=update.message.id)
+                break
 
         if(word in MACRON):
             await context.bot.send_animation(chat_id=update.effective_chat.id, animation="CgACAgQAAxkBAAPjZgK8HwXQvB1F_XjHnuGsfGMHlvMAAmwDAALf4wRQ5tyY4x_PPR00BA", reply_to_message_id=update.message.id)
