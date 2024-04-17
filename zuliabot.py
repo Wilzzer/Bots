@@ -23,7 +23,6 @@ ZUL = ["o",
        "ow",
        "aud",
        "aut",
-       "op",
        "os"]
 
 CKU = ["seku",
@@ -34,7 +33,7 @@ CKU = ["seku",
 APAGN = ["apagn",
          "gnan"]
 
-EXCEPT = ["miros",
+BAN = ["miros",
           "os",
           "bot",
           "hotspot",
@@ -63,6 +62,11 @@ EXCEPT = ["miros",
           "tekos",
           "hop"]
 
+EXCEPT = ["sirop",
+          "galop",
+          "salop"
+          "trop"]
+
 MACRON = ["macron",
           "micron"]
 
@@ -77,7 +81,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(words)
     for word in words:
         for o in ZUL:
-            if word.endswith(o) and word not in EXCEPT:
+            if ((word.endswith(o) and word not in BAN) or (word in EXCEPT):
                 zuliatext = "🤌🤌 "+word.upper()+" ZULIANI 🤌🤌"
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=zuliatext)
                 time.sleep(0.1)
