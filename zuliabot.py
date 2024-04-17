@@ -82,7 +82,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(words)
     for word in words:
         for o in ZUL:
-            if ((word.endswith(o) and word not in BAN) or (word in EXCEPT):
+            if ((word.endswith(o) and word not in BAN) or (word in EXCEPT)):
                 zuliatext = "🤌🤌 "+word.upper()+" ZULIANI 🤌🤌"
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=zuliatext)
                 time.sleep(0.1)
