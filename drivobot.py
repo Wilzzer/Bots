@@ -2,6 +2,7 @@ import os
 import json
 import re
 import string
+import time
 from datetime import datetime
 from telegram import *
 from telegram.ext import *
@@ -68,6 +69,7 @@ class GoogleDrivito:
     def get_folder_buttons(self, user_data):
         buttons = [[InlineKeyboardButton("Save image here", callback_data="save_here")]]
         row_buttons = []
+        time.sleep(0.2)
         q_req = f"'{user_data[CURRENT_FOLDER_ID_KEY]}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
         f = self.drive.ListFile({"q": q_req}).GetList()
         for folder in f:
@@ -131,12 +133,12 @@ def restricted(func):
         return await func(update, context, *args, **kwargs)
     return wrapped
 
-async def retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[CURRENT_FOLDER_ID_KEY] = context.bot_data[DRIVE_KEY].root_folder
     context.user_data[CURRENT_FOLDER_KEY] = "root"
     context.user_data[PARENT_FOLDER_ID_KEY] = None
     context.user_data[PARENT_FOLDER_KEY] = ""
-    context.user_data[FILES_KEY] = []
+    if(FILES_KEY not in context.user_data):context.user_data[FILES_KEY] = []
 
     print("User {} ({}) sent a photo".format(update.message.from_user.first_name, update.message.from_user.id))
     if (context.bot_data[ACTIF_KEY]):
@@ -147,46 +149,53 @@ async def retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             file = await update.message.effective_attachment.get_file()
 
         now = datetime.now()
-        filename = f"./{RES_FOLDER}{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S')}"
+        filename = f"./{RES_FOLDER}{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S-%f')}"
         try: 
             await file.download_to_drive(filename)
             context.user_data[FILES_KEY].append(filename)
-            buttons = context.bot_data[DRIVE_KEY].get_folder_buttons(context.user_data)
-            text = "What do you wish to do ?\nCurrently in root folder."
-            context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=InlineKeyboardMarkup(buttons))
-            return SAVE_SELECT
+            buttons = [["Send to drive"]]
+            if(MSG_KEY in context.user_data): await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id)
+            context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text="Tell me when you're done sending pictures.", reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+            return
             
         except Exception as e:
-            print("Error in downloading or uploading the file. See error: "+str(e))
+            print("Error in downloading or uploading the file. See error: ", e)
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Couldn't load file. Please try again or contact xxx.")
-            return ConversationHandler.END
+            return
 
 # async def drive_conv_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def save_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    context.bot_data[DRIVE_KEY].upload_file(context.user_data[FILES_KEY][0], context.user_data)
-    os.remove(context.user_data[FILES_KEY][0])
-    print("User {} ({}) saved a photo in {}".format(update.message.from_user.first_name, update.message.from_user.id, context.user_data[CURRENT_FOLDER_KEY]))
+    text = f"Saving {len(context.user_data[FILES_KEY])} pictures in folder {context.user_data[CURRENT_FOLDER_KEY]}"
+    await query.edit_message_text(text=text, reply_markup=None)
+    for file in context.user_data[FILES_KEY]:
+        context.bot_data[DRIVE_KEY].upload_file(file, context.user_data)
+        os.remove(file)
+        print("User {} ({}) saved a photo in {}".format(update.effective_user.first_name, update.effective_user.id, context.user_data[CURRENT_FOLDER_KEY]))
     context.user_data[CURRENT_FOLDER_ID_KEY] = context.bot_data[DRIVE_KEY].root_folder
     context.user_data[CURRENT_FOLDER_KEY] = "root"
     context.user_data[PARENT_FOLDER_ID_KEY] = None
     context.user_data[PARENT_FOLDER_KEY] = ""
-    await query.edit_message_text(text="Picture saved.", reply_markup=None)
+    del context.user_data[MSG_KEY]
+    del context.user_data[FILES_KEY]
+    await query.edit_message_text(text="Picture(s) saved.", reply_markup=None)
     await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker="CAACAgQAAxkBAAIDAAFmHS3yhan2ZHcGr3AOzUxfdTYpPwACJgADo2BSJe5Iq58LIBQrNAQ")
     
     return ConversationHandler.END
 
-async def new_folder_req(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def new_folder_req(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(text="Please enter a new folder name", reply_markup=None)
 
     return FOLDER
 
-async def change_folder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def change_folder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     drive = context.bot_data[DRIVE_KEY]
+    if(update.message and (MSG_KEY in context.user_data) and (update.message.text == "Send to drive")):del context.user_data[MSG_KEY]
+
     try:
         query = update.callback_query
         await query.answer()
@@ -206,7 +215,8 @@ async def change_folder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         folder_req = context.user_data[CURRENT_FOLDER_KEY]
     buttons = drive.get_folder_buttons(context.user_data)
     text = "What do you wish to do ?\nCurrently in folder "+folder_req
-    await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id, text=text, reply_markup=InlineKeyboardMarkup(buttons))
+    if(MSG_KEY in context.user_data):await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id, text=text, reply_markup=InlineKeyboardMarkup(buttons))
+    else: context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=InlineKeyboardMarkup(buttons))
 
     return SAVE_SELECT
 
@@ -235,19 +245,18 @@ async def new_folder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     translator = str.maketrans('','',string.punctuation)
     new_folder_name = new_folder_name.translate(translator)
     context.user_data[PARENT_FOLDER_ID_KEY], context.user_data[PARENT_FOLDER_KEY], context.user_data[CURRENT_FOLDER_ID_KEY], context.user_data[CURRENT_FOLDER_KEY] = context.bot_data[DRIVE_KEY].create_folder(new_folder_name, context.user_data)
+    print("User {} ({}) created folder {} in {}".format(update.effective_user.first_name, update.effective_user.id, context.user_data[CURRENT_FOLDER_KEY], context.user_data[PARENT_FOLDER_KEY]))
     await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.id)
 
     await change_folder(update, context)
     return SAVE_SELECT
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:os.remove(context.user_data[FILES_KEY])
-    except:print("Couldn't delete file.")
+    for file in context.user_data[FILES_KEY]:
+        try:os.remove(file)
+        except:print("Couldn't delete file :", file)
+    del context.user_data[FILES_KEY]
     await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id, text="Cancelled. Please send image again to restart.", reply_markup=None)
-    context.user_data[DRIVE_KEY].current_folder_id = context.user_data[DRIVE_KEY].root_folder
-    context.user_data[DRIVE_KEY].current_folder = "root"
-    context.user_data[DRIVE_KEY].parent_folder_id = None
-    context.user_data[DRIVE_KEY].parent_folder = ""
     context.user_data[CURRENT_FOLDER_ID_KEY] = context.bot_data[DRIVE_KEY].root_folder
     context.user_data[CURRENT_FOLDER_KEY] = "root"
     context.user_data[PARENT_FOLDER_ID_KEY] = None
@@ -286,8 +295,18 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def getuserid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=update.effective_user.id)
 
-async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("User {} ({}) sent a photo".format(update.message.from_user.first_name, update.message.from_user.id))
+async def restart_retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    for file in context.user_data[FILES_KEY]:
+        try:os.remove(file)
+        except:print("Couldn't delete file :", file)
+    del context.user_data[FILES_KEY]
+    context.user_data[CURRENT_FOLDER_ID_KEY] = context.bot_data[DRIVE_KEY].root_folder
+    context.user_data[CURRENT_FOLDER_KEY] = "root"
+    context.user_data[PARENT_FOLDER_ID_KEY] = None
+    context.user_data[PARENT_FOLDER_KEY] = ""
+    print("Prout")
+    await retrieve_image(update, context)
+    return ConversationHandler.END
 
 def main():
     drive = GoogleDrivito(DRIVE_ROOT_FOLDER)
@@ -300,7 +319,9 @@ def main():
     app.bot_data[ACTIF_KEY] = True
 
     image_conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image)],
+        entry_points=[
+            MessageHandler(filters.Regex("^Send to drive$"), change_folder)
+            ],
         states={
             SAVE_SELECT:[
                 CallbackQueryHandler(save_image, pattern="save_here"),
@@ -315,13 +336,15 @@ def main():
                 )
             ]
         },
-        fallbacks=[MessageHandler(filters.Regex("^(Done|Discard)$"), done)]
+        fallbacks=[
+            MessageHandler(filters.Regex("^(Done|Discard)$"), done),
+            MessageHandler(filters.PHOTO | filters.Document.IMAGE, restart_retrieve_image)
+            ]
     )
-
+    app.add_handler(image_conv_handler)
     app.add_handler(CommandHandler(['newadmin', 'actif', 'inactif', 'removeadmin'], admin_command, filters=filters.COMMAND))
     app.add_handler(CommandHandler(['getuserid'], getuserid, filters=filters.COMMAND))
-    app.add_handler(image_conv_handler)
-    # app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, test))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
