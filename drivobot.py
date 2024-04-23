@@ -26,10 +26,18 @@ PARENT_FOLDER_ID_KEY = "parent_folder_id"
 PARENT_FOLDER_KEY = "parent_folder"
 
 DRIVE_ROOT_FOLDER = "1iwCmOMPB8eFM1rtQMHW_QNiXOu0cK-BP"
+# DRIVE_ROOT_FOLDER = "1L4RwhNTIPACYkO9bM4aGVTr1ZlpHcL7u"
+# DRIVE_SETTINGS = {
+#         "client_config_backend": "file",
+#         "client_config_file": RES_FOLDER+"client_secrets.json",
+#         "save_credentials": False,
+#         "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+#     }
 DRIVE_SETTINGS = {
-        "client_config_backend": "file",
-        "client_config_file": RES_FOLDER+"client_secrets.json",
-        "save_credentials": False,
+        "client_config_backend": "service",
+        "service_config": {
+                "client_json_file_path": RES_FOLDER+"service-secrets.json"
+            },
         "oauth_scope": ["https://www.googleapis.com/auth/drive"],
     }
 FOLDER_MAX_BUTTONS = 2
@@ -39,14 +47,16 @@ SAVE_SELECT, FOLDER = range(2)
 class GoogleDrivito:
     def __init__(self, folder_id):
         self.gauth = GoogleAuth(settings=DRIVE_SETTINGS)
-        self.gauth.LocalWebserverAuth()
+        self.gauth.ServiceAuth()
         self.drive = GoogleDrive(self.gauth)
+        about = self.drive.GetAbout()
+        print('Root folder ID:{}'.format(about['rootFolderId']))
         self.root_folder = folder_id
 
     def upload_file(self, filename, user_data):
         metadata = {
-        'parents':[{"id":user_data[CURRENT_FOLDER_ID_KEY]}],
-        'title':os.path.basename(filename)
+            'parents':[{"id":user_data[CURRENT_FOLDER_ID_KEY]}],
+            'title':os.path.basename(filename)
         }
         file_drive = self.drive.CreateFile(metadata=metadata)
         file_drive.SetContentFile(filename)
@@ -61,10 +71,6 @@ class GoogleDrivito:
         folder = self.drive.CreateFile(metadata=metadata)
         folder.Upload()
         return user_data[CURRENT_FOLDER_ID_KEY], user_data[CURRENT_FOLDER_KEY], folder['id'], folder['title']
-        # self.parent_folder_id = self.current_folder_id
-        # self.parent_folder = self.current_folder
-        # self.current_folder_id = folder['id']
-        # self.current_folder = folder['title']
 
     def get_folder_buttons(self, user_data):
         buttons = [[InlineKeyboardButton("Save image here", callback_data="save_here")]]
@@ -142,33 +148,39 @@ async def retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print("User {} ({}) sent a photo".format(update.message.from_user.first_name, update.message.from_user.id))
     if (context.bot_data[ACTIF_KEY]):
-        if(update.message.photo):
-            file_id = update.message.photo[-1].file_id
-            file = await context.bot.get_file(file_id)
-        else:
-            file = await update.message.effective_attachment.get_file()
+        try:
+            if(update.message.photo):
+                file_id = update.message.photo[-1].file_id
+                file = await context.bot.get_file(file_id)
+            else:
+                file = await update.message.effective_attachment.get_file()
 
-        now = datetime.now()
-        filename = f"./{RES_FOLDER}{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S-%f')}"
-        try: 
-            await file.download_to_drive(filename)
-            context.user_data[FILES_KEY].append(filename)
-            buttons = [["Send to drive"]]
-            if(MSG_KEY in context.user_data): await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id)
-            context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text="Tell me when you're done sending pictures.", reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
-            return
-            
+            now = datetime.now()
+            filename = f"./{RES_FOLDER}{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S-%f')}"
+            try:
+                await file.download_to_drive(filename)
+                context.user_data[FILES_KEY].append(filename)
+                buttons = [["Send to drive"]]
+                if(MSG_KEY in context.user_data): await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id)
+                context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text="Tell me when you're done sending pictures.", reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True))
+                return
+
+            except Exception as e:
+                print("Error in downloading or uploading the file. See error: ", e)
+                if(MSG_KEY in context.user_data): await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id)
+                context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text="Couldn't load file. Please try again or contact xxx.")
+                return
         except Exception as e:
-            print("Error in downloading or uploading the file. See error: ", e)
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Couldn't load file. Please try again or contact xxx.")
-            return
+            print("User "+str(update.effective_user.first_name)+ " ("+str(update.effective_user.id)+") tried uploading an image that was too large.")
+            if(MSG_KEY in context.user_data): await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id)
+            context.user_data[MSG_KEY] = await context.bot.send_message(chat_id=update.effective_chat.id, text="Couldn't load file. Your file is probably bigger than 20MB.")
 
 # async def drive_conv_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def save_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    text = f"Saving {len(context.user_data[FILES_KEY])} pictures in folder {context.user_data[CURRENT_FOLDER_KEY]}"
+    text = f"Saving {len(context.user_data[FILES_KEY])} picture(s) in folder {context.user_data[CURRENT_FOLDER_KEY]}"
     await query.edit_message_text(text=text, reply_markup=None)
     for file in context.user_data[FILES_KEY]:
         context.bot_data[DRIVE_KEY].upload_file(file, context.user_data)
@@ -212,7 +224,8 @@ async def change_folder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         else: 
             folder_req = context.user_data[CURRENT_FOLDER_KEY]
     except:
-        folder_req = context.user_data[CURRENT_FOLDER_KEY]
+        try: folder_req = context.user_data[CURRENT_FOLDER_KEY]
+        except Exception as e: print("Error :", e)
     buttons = drive.get_folder_buttons(context.user_data)
     text = "What do you wish to do ?\nCurrently in folder "+folder_req
     if(MSG_KEY in context.user_data):await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data[MSG_KEY].message_id, text=text, reply_markup=InlineKeyboardMarkup(buttons))
@@ -304,17 +317,17 @@ async def restart_retrieve_image(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data[CURRENT_FOLDER_KEY] = "root"
     context.user_data[PARENT_FOLDER_ID_KEY] = None
     context.user_data[PARENT_FOLDER_KEY] = ""
-    print("Prout")
     await retrieve_image(update, context)
     return ConversationHandler.END
 
 def main():
     drive = GoogleDrivito(DRIVE_ROOT_FOLDER)
+    print(drive)
 
     with open(TOKEN_FILE) as f:
         token_file = json.load(f)
     token = token_file['drive']
-    app = ApplicationBuilder().token(token).build()
+    app = ApplicationBuilder().token(token).build()#.concurrent_updates(True).build() ###TEST CONCURRENT UPDATES. SI FONCTIONNE PAS, ESSAYER BLOCK=FALSE DANS IMAGE_CONV_HANDLER
     app.bot_data[DRIVE_KEY] = drive
     app.bot_data[ACTIF_KEY] = True
 
@@ -339,12 +352,13 @@ def main():
         fallbacks=[
             MessageHandler(filters.Regex("^(Done|Discard)$"), done),
             MessageHandler(filters.PHOTO | filters.Document.IMAGE, restart_retrieve_image)
-            ]
+            ],
+        block=False
     )
     app.add_handler(image_conv_handler)
     app.add_handler(CommandHandler(['newadmin', 'actif', 'inactif', 'removeadmin'], admin_command, filters=filters.COMMAND))
     app.add_handler(CommandHandler(['getuserid'], getuserid, filters=filters.COMMAND))
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image, block=False))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
