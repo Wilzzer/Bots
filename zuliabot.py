@@ -12,6 +12,7 @@ logging.basicConfig(
 )
 
 TOKEN_FILE = "Ressources/bot_tok.txt"
+FORTNITE_FILE = "Ressources/frontine.mp3"
 
 ZUL = ["o",
        "eau",
@@ -61,7 +62,8 @@ BAN = ["miros",
        "rapidos",
        "tekos",
        "hop",
-       "oh"]
+       "oh",
+       "igloo"]
 
 EXCEPT = ["sirop",
           "galop",
@@ -71,6 +73,17 @@ EXCEPT = ["sirop",
 MACRON = ["macron",
           "micron"]
 
+FORTNITE = ["fortnite",
+            "frontine",
+            "fortnie",
+            "fonritne",
+            "forntie",
+            "frontirne",
+            "fornitne",
+            "forntine",
+            "inoxtag",
+            "michou"]
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
@@ -79,6 +92,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     translator = str.maketrans('','',string.punctuation)
     words = update.message.text.lower().translate(translator)
     words = unidecode(words).split()    
+    print(update.effective_user.first_name+" :", end='')
     print(words)
     for word in words:
         for o in ZUL:
@@ -97,7 +111,10 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # if(word in CKU):
                 await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker="CAACAgQAAxkBAANWZgKkKTBWXw4QXdnnzj4moP-PuYEAApQJAAIO6MlQCDZWevZwWR40BA", reply_to_message_id=update.message.id)
                 break
-
+        
+        if word in FORTNITE:
+            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=open(FORTNITE_FILE, 'rb'), reply_to_message_id=update.message.id)
+        
         if(word in MACRON):
             await context.bot.send_animation(chat_id=update.effective_chat.id, animation="CgACAgQAAxkBAAPjZgK8HwXQvB1F_XjHnuGsfGMHlvMAAmwDAALf4wRQ5tyY4x_PPR00BA", reply_to_message_id=update.message.id)
 

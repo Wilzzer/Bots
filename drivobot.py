@@ -3,6 +3,8 @@ import json
 import re
 import string
 import time
+from PIL import Image
+import piexif
 from datetime import datetime
 from telegram import *
 from telegram.ext import *
@@ -45,7 +47,7 @@ FOLDER_MAX_BUTTONS = 2
 SAVE_SELECT, FOLDER = range(2)
 
 class GoogleDrivito:
-    def __init__(self, folder_id):
+    def __init__(self, folder_id=DRIVE_ROOT_FOLDER):
         self.gauth = GoogleAuth(settings=DRIVE_SETTINGS)
         self.gauth.ServiceAuth()
         self.drive = GoogleDrive(self.gauth)
@@ -53,9 +55,9 @@ class GoogleDrivito:
         print('Root folder ID:{}'.format(about['rootFolderId']))
         self.root_folder = folder_id
 
-    def upload_file(self, filename, user_data):
+    def upload_file(self, filename, folder_id):#user_data):
         metadata = {
-            'parents':[{"id":user_data[CURRENT_FOLDER_ID_KEY]}],
+            'parents':[{"id":folder_id}],#user_data[CURRENT_FOLDER_ID_KEY]}],
             'title':os.path.basename(filename)
         }
         file_drive = self.drive.CreateFile(metadata=metadata)
@@ -156,7 +158,7 @@ async def retrieve_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 file = await update.message.effective_attachment.get_file()
 
             now = datetime.now()
-            filename = f"./{RES_FOLDER}{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S-%f')}"
+            filename = f"./{RES_FOLDER}Temp/{update.message.from_user.first_name}__{now.strftime('%d_%m_%Y__%H-%M-%S-%f')}.jpg"
             try:
                 await file.download_to_drive(filename)
                 context.user_data[FILES_KEY].append(filename)
@@ -183,9 +185,9 @@ async def save_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = f"Saving {len(context.user_data[FILES_KEY])} picture(s) in folder {context.user_data[CURRENT_FOLDER_KEY]}"
     await query.edit_message_text(text=text, reply_markup=None)
     for file in context.user_data[FILES_KEY]:
-        context.bot_data[DRIVE_KEY].upload_file(file, context.user_data)
-        os.remove(file)
-        print("User {} ({}) saved a photo in {}".format(update.effective_user.first_name, update.effective_user.id, context.user_data[CURRENT_FOLDER_KEY]))
+        new_name = os.path.dirname(file)+"/!"+context.user_data[CURRENT_FOLDER_ID_KEY]+"!"+os.path.basename(file)
+        os.rename(file, new_name)
+        
     context.user_data[CURRENT_FOLDER_ID_KEY] = context.bot_data[DRIVE_KEY].root_folder
     context.user_data[CURRENT_FOLDER_KEY] = "root"
     context.user_data[PARENT_FOLDER_ID_KEY] = None
@@ -358,7 +360,7 @@ def main():
     app.add_handler(image_conv_handler)
     app.add_handler(CommandHandler(['newadmin', 'actif', 'inactif', 'removeadmin'], admin_command, filters=filters.COMMAND))
     app.add_handler(CommandHandler(['getuserid'], getuserid, filters=filters.COMMAND))
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image, block=False))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, retrieve_image))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
