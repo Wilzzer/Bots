@@ -30,7 +30,7 @@ def file_upload():
             except:
                 print("Couldn't upload file :", old_name)
                 os.rename(file, old_name)
-        if(img_ctime+del_delay<datetime.datetime.now()):
+        if(img_ctime+del_delay<datetime.datetime.now() and folder_id==None):
             os.remove(file)
     return 
 
