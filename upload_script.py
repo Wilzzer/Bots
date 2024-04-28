@@ -21,14 +21,17 @@ def file_upload():
         
         if(indexes):
             folder_id = filename[indexes[0]+1:indexes[1]]
-            new_name = filedir+"/"+filename[len(folder_id)+2:]
-            os.rename(file, new_name)
-            drive.upload_file(new_name, folder_id)
-            os.remove(new_name)
+            old_name = filename
+            try:
+                new_name = filedir+"/"+filename[len(folder_id)+2:]
+                os.rename(file, new_name)
+                drive.upload_file(new_name, folder_id)
+                os.remove(new_name)
+            except:
+                print("Couldn't upload file :", old_name)
+                os.rename(file, old_name)
         if(img_ctime+del_delay<datetime.datetime.now()):
             os.remove(file)
-
-
     return 
 
 def main():
