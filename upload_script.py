@@ -30,15 +30,18 @@ def file_upload():
             except:
                 print("Couldn't upload file :", old_name)
                 os.rename(file, old_name)
-        if(img_ctime+del_delay<datetime.datetime.now() and folder_id==None):
-            os.remove(file)
+        elif(img_ctime+del_delay<datetime.datetime.now() and folder_id==None):
+            try:
+                os.remove(file)
+            except:
+                print("Could del file :", file)
     return 
 
 def main():
     global drive
     drive = GoogleDrivito()
 
-    schedule.every(5).seconds.do(file_upload)
+    schedule.every(10).seconds.do(file_upload)
     while True:
         schedule.run_pending()
         time.sleep(1)
