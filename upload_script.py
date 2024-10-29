@@ -21,21 +21,27 @@ def file_upload():
         
         if(indexes):
             folder_id = filename[indexes[0]+1:indexes[1]]
-            new_name = filedir+"/"+filename[len(folder_id)+2:]
-            os.rename(file, new_name)
-            drive.upload_file(new_name, folder_id)
-            os.remove(new_name)
-        if(img_ctime+del_delay<datetime.datetime.now()):
-            os.remove(file)
-
-
+            old_name = filename
+            try:
+                new_name = filedir+"/"+filename[len(folder_id)+2:]
+                os.rename(file, new_name)
+                drive.upload_file(new_name, folder_id)
+                os.remove(new_name)
+            except:
+                print("Couldn't upload file :", old_name)
+                os.rename(file, old_name)
+        elif(img_ctime+del_delay<datetime.datetime.now() and folder_id==None):
+            try:
+                os.remove(file)
+            except:
+                print("Could del file :", file)
     return 
 
 def main():
     global drive
     drive = GoogleDrivito()
 
-    schedule.every(5).seconds.do(file_upload)
+    schedule.every(10).seconds.do(file_upload)
     while True:
         schedule.run_pending()
         time.sleep(1)
